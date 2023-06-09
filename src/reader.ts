@@ -1,6 +1,9 @@
 import type { TCompactProtocolReader } from './lib/thrift/reader.js';
 import { ThriftType } from './lib/thrift/types.js';
 
+/**
+ * Type and value pair read from Thrift.
+ */
 export type ParsedValue =
   | {
       type: ThriftType.STRUCT;
@@ -35,12 +38,15 @@ export type ParsedValue =
       value: undefined;
     };
 
+/**
+ * The type of fields in {@link ThriftType.STRUCT}, as they have a varint field id.
+ */
 export type ParsedFieldValue = { fid: number } & ParsedValue;
 
-export function readStruct(r: TCompactProtocolReader): ParsedValue {
-  return readType(r, ThriftType.STRUCT);
-}
-
+/**
+ * Read a known type from the {@link TCompactProtocolReader}. Thrift types typically start with
+ * {@link ThriftType.STRUCT}. Recursive, reads whole object.
+ */
 export function readType(r: TCompactProtocolReader, type: ThriftType): ParsedValue {
   switch (type) {
     case ThriftType.BOOL:
