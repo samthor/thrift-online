@@ -1,55 +1,118 @@
-import type { AppNodeElement } from './node.js';
+import { LitElement, css, html } from 'lit';
+import { iterateValue } from '../lib/vmap.js';
+import { ParsedValue } from '../reader.js';
+import { AppType } from '../typemap.js';
+import { customElement, property } from 'lit/decorators.js';
+import { repeat } from 'lit/directives/repeat.js';
+
+const parentMap = new WeakMap<ParsedValue, ParsedValue>();
 
 /**
- * Creates several horizontal columns.
+ * Find the path from the selected node to the root.
  */
-export class AppNestElement extends HTMLElement {
-  #main: HTMLElement;
-
-  constructor() {
-    super();
-
-    const root = this.attachShadow({ mode: 'open' });
-
-    root.innerHTML = `
-<style>
-main {
-  border: 1px solid #ccc;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  overflow: auto;
-  align-items: stretch;
-
-  & section {
-    border-right: 1px solid #ddd;
-    width: 400px;
-    padding: 4px;
-    box-sizing: border-box;
-  }
-}
-</style>
-<main></main>
-`;
-    this.#main = root.querySelector('main')!;
+function pathFrom(selected: ParsedValue | undefined, root: ParsedValue) {
+  const path: ParsedValue[] = [];
+  while (selected !== root && selected !== undefined) {
+    path.unshift(selected);
+    selected = parentMap.get(selected);
   }
 
-  setSectionCount(count: number) {
-    while (this.#main.children.length > count) {
-      this.#main.lastElementChild!.remove();
-    }
-
-    while (this.#main.children.length < count) {
-      const node = document.createElement('section');
-      this.#main.append(node);
-    }
+  if (selected === root) {
+    path.unshift(root);
+    return path;
   }
-
-  setSection(sec: number, nodes: AppNodeElement[]) {
-    const el = this.#main.children[sec];
-    el.innerHTML = '';
-    el.append(...nodes);
-  }
+  return [root];
 }
 
-customElements.define('app-nest', AppNestElement);
+/**
+ * Creates several horizontal columns. Renders a single item which is descended into the tree.
+ */
+@customElement('app-nest')
+export class AppNestElement extends LitElement {
+  static styles = css`
+    #wrap {
+      position: relative;
+
+      & > #border {
+        content: '';
+        position: absolute;
+        border: 1px solid red;
+        border-radius: 2px;
+        inset: 0;
+        pointer-events: none;
+      }
+    }
+
+    main {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      overflow: auto;
+      align-items: stretch;
+      --section-width: 280px;
+      border: 1px solid transparent;
+      border-right: 0;
+      box-sizing: border-box;
+
+      & section {
+        padding: 4px;
+        box-sizing: border-box;
+        border-right: 1px solid blue;
+        width: var(--section-width);
+        min-width: var(--section-width);
+      }
+    }
+  `;
+
+  @property()
+  root: ParsedValue = { type: AppType.VOID, value: undefined };
+
+  /**
+   * Always show the path from selected to the root item. Assume this is root if undefined.
+   */
+  #selected: ParsedValue | undefined;
+
+  #choiceHandler(ce: CustomEvent<ParsedValue>) {
+    this.#selected = ce.detail;
+    this.requestUpdate();
+  }
+
+  render() {
+    const path = pathFrom(this.#selected, this.root);
+
+    const sections = repeat(path, (p) => {
+      const items = iterateValue(p);
+
+      // Iterate possible choices and store for later parent check.
+      // This is a lazy non-tree.
+      items.forEach((i) => parentMap.set(i.value, p));
+
+      const nodes = repeat(
+        items,
+        (i) => i.key,
+        (i) => {
+          return html`<app-node .value=${i.value} .key=${i.key}></app-node>`;
+        },
+      );
+
+      return html`<section>${nodes}</section>`;
+    });
+
+    return html`
+      <div id="wrap">
+        <main @choice=${this.#choiceHandler}>${sections}</main>
+        <div id="border"></div>
+      </div>
+    `;
+  }
+
+  updated() {
+    const mainElement = this.renderRoot.querySelector('main')!;
+
+    // This combo ensures the right-most is view, but then makes sure the entire prior is visible
+    // (placing in center).
+    const le = mainElement.lastElementChild;
+    le?.scrollIntoView();
+    le?.previousElementSibling?.scrollIntoView({ inline: 'center' });
+  }
+}

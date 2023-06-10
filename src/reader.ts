@@ -1,45 +1,46 @@
 import type { TCompactProtocolReader } from './lib/thrift/reader.js';
 import { ThriftType } from './lib/thrift/types.js';
+import { AppType } from './typemap.js';
 
 /**
  * Type and value pair read from Thrift.
  */
 export type ParsedValue =
   | {
-      type: ThriftType.STRUCT;
+      type: AppType.STRUCT;
       fields: ParsedFieldValue[];
     }
   | {
-      type: ThriftType.LIST | ThriftType.SET;
-      etype: ThriftType;
+      type: AppType.LIST | AppType.SET;
+      etype?: AppType;
       items: ParsedValue[];
     }
   | {
-      type: ThriftType.MAP;
-      ktype: ThriftType;
-      vtype: ThriftType;
+      type: AppType.MAP;
+      ktype?: AppType;
+      vtype?: AppType;
       entries: { key: ParsedValue; value: ParsedValue }[];
     }
   | {
-      type: ThriftType.BOOL;
+      type: AppType.BOOL;
       value: boolean;
     }
   | {
-      type: ThriftType.BYTES | ThriftType.UUID;
+      type: AppType.BYTES | AppType.UUID;
       value: Uint8Array;
     }
   | {
-      type: ThriftType.I08 | ThriftType.I16 | ThriftType.I32 | ThriftType.I64 | ThriftType.DOUBLE;
+      type: AppType.BYTE | AppType.I08 | AppType.I16 | AppType.I32 | AppType.I64 | AppType.DOUBLE;
       value: number;
     }
   | {
       // should never really happen
-      type: ThriftType.STOP | ThriftType.VOID;
+      type: AppType.VOID;
       value: undefined;
     };
 
 /**
- * The type of fields in {@link ThriftType.STRUCT}, as they have a varint field id.
+ * The type of fields in {@link AppType.STRUCT}, as they have a varint field id.
  */
 export type ParsedFieldValue = { fid: number } & ParsedValue;
 
@@ -50,28 +51,28 @@ export type ParsedFieldValue = { fid: number } & ParsedValue;
 export function readType(r: TCompactProtocolReader, type: ThriftType): ParsedValue {
   switch (type) {
     case ThriftType.BOOL:
-      return { type, value: r.readBool() };
+      return { type: AppType.BOOL, value: r.readBool() };
 
     case ThriftType.BYTE:
-      return { type, value: r.readByte() };
+      return { type: AppType.BYTE, value: r.readByte() };
 
     case ThriftType.I16:
-      return { type, value: r.readI16() };
+      return { type: AppType.I16, value: r.readI16() };
 
     case ThriftType.I32:
-      return { type, value: r.readI32() };
+      return { type: AppType.I32, value: r.readI32() };
 
     case ThriftType.I64:
-      return { type, value: r.readI64() };
+      return { type: AppType.I64, value: r.readI64() };
 
     case ThriftType.DOUBLE:
-      return { type, value: r.readDouble() };
+      return { type: AppType.DOUBLE, value: r.readDouble() };
 
     case ThriftType.BYTES:
-      return { type, value: r.readBinary() };
+      return { type: AppType.BYTES, value: r.readBinary() };
 
     case ThriftType.UUID:
-      return { type, value: r.readUuid() };
+      return { type: AppType.UUID, value: r.readUuid() };
 
     case ThriftType.STRUCT: {
       r.readStructBegin();
@@ -88,7 +89,7 @@ export function readType(r: TCompactProtocolReader, type: ThriftType): ParsedVal
       }
 
       r.readStructEnd();
-      return { type, fields };
+      return { type: AppType.STRUCT, fields };
     }
 
     case ThriftType.SET:
@@ -100,7 +101,11 @@ export function readType(r: TCompactProtocolReader, type: ThriftType): ParsedVal
         items.push(readType(r, info.etype));
       }
       r.readListEnd();
-      return { items, type, etype: info.etype };
+      return {
+        items,
+        type: type === ThriftType.SET ? AppType.SET : AppType.LIST,
+        etype: fromThriftType(info.etype),
+      };
     }
 
     case ThriftType.MAP: {
@@ -113,10 +118,34 @@ export function readType(r: TCompactProtocolReader, type: ThriftType): ParsedVal
         entries.push({ key, value });
       }
 
-      return { entries, ...info, type };
+      return {
+        entries,
+        ktype: fromThriftType(info.ktype),
+        vtype: fromThriftType(info.vtype),
+        type: AppType.MAP,
+      };
     }
   }
 
   r.skip(type);
-  return { type, value: undefined };
+  return { type: AppType.VOID, value: undefined };
 }
+
+function fromThriftType(t: ThriftType): AppType {
+  return thriftToAppType.get(t)!;
+}
+
+const thriftToAppType = new Map<ThriftType, AppType>([
+  [ThriftType.BOOL, AppType.BOOL],
+  [ThriftType.BYTE, AppType.BYTE],
+  [ThriftType.BYTES, AppType.BYTES],
+  [ThriftType.DOUBLE, AppType.DOUBLE],
+  [ThriftType.I16, AppType.I16],
+  [ThriftType.I32, AppType.I32],
+  [ThriftType.I64, AppType.I64],
+  [ThriftType.LIST, AppType.LIST],
+  [ThriftType.MAP, AppType.MAP],
+  [ThriftType.SET, AppType.SET],
+  [ThriftType.STRUCT, AppType.STRUCT],
+  [ThriftType.UUID, AppType.UUID],
+]);

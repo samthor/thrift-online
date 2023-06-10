@@ -13,6 +13,7 @@
   "author": "Sam Thorogood <sam.thorogood@gmail.com>",
   "license": "Apache-2.0",
   "dependencies": {
+    "lit": "^2.7.5",
     "thorish": "^1.1.6"
   }
 }
