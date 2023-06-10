@@ -1,7 +1,6 @@
 import { LitElement, css, html } from 'lit';
 import { iterateValue } from '../lib/vmap.js';
-import { ParsedValue } from '../reader.js';
-import { AppType } from '../typemap.js';
+import { AppType, ParsedValue } from '../types.js';
 import { customElement, property } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 

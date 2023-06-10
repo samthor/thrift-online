@@ -1,5 +1,4 @@
-import type { ParsedValue } from '../reader.js';
-import { AppType } from '../typemap.js';
+import { type ParsedValue, AppType } from '../types.js';
 
 const vmap = new WeakMap<
   ParsedValue,

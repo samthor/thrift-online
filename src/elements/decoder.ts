@@ -1,9 +1,9 @@
 import { TCompactProtocolReaderBuffer } from '../lib/thrift/reader.js';
 import { ThriftType } from '../lib/thrift/types.js';
-import { ParsedValue, readType } from '../reader.js';
 import { AppNestElement } from './nest.js';
 import { convertToBuffer } from '../lib/source.js';
-import { AppType } from '../typemap.js';
+import { AppType, ParsedValue } from '../types.js';
+import { readThrift } from '../format/thrift.js';
 
 export class AppDecoderElement extends HTMLElement {
   #main: AppNestElement;
@@ -58,7 +58,7 @@ textarea {
       return;
     }
     const reader = new TCompactProtocolReaderBuffer(buf, offset);
-    const out = readType(reader, ThriftType.STRUCT);
+    const out = readThrift(reader, ThriftType.STRUCT);
 
     // TODO: proxy for "master list"
     const listItem: ParsedValue = {

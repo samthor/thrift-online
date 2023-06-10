@@ -1,5 +1,4 @@
-import type { ParsedValue } from '../reader.js';
-import { AppType, lookupType } from '../typemap.js';
+import { AppType, lookupType, ParsedValue } from '../types.js';
 import { AppValueElement } from './value.js';
 
 const icons = {
