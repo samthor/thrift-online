@@ -18,6 +18,8 @@ export enum AppType {
   BYTES,
   UUID, // 16-byte thingo
 
+  STRING,
+
   VOID,
 }
 
@@ -49,6 +51,10 @@ export type ParsedValue =
       value: Uint8Array;
     }
   | {
+      type: AppType.STRING;
+      value: string;
+    }
+  | {
       type: AppType.BYTE | AppType.I08 | AppType.I16 | AppType.I32 | AppType.I64 | AppType.DOUBLE;
       value: number;
     }
@@ -63,7 +69,6 @@ export type ParsedValue =
  */
 export type ParsedFieldValue = { fid: number } & ParsedValue;
 
-
 const inverse = new Map<AppType, string>();
 
 Object.entries(AppType).forEach(([name, type]) => {
@@ -71,5 +76,5 @@ Object.entries(AppType).forEach(([name, type]) => {
 });
 
 export function lookupType(type?: AppType): string {
-  return type && inverse.get(type) || '?';
+  return (type && inverse.get(type)) || '?';
 }

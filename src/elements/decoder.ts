@@ -1,13 +1,16 @@
-import { TCompactProtocolReaderBuffer } from '../lib/thrift/reader.js';
-import { ThriftType } from '../lib/thrift/types.js';
 import { AppNestElement } from './nest.js';
-import { convertToBuffer } from '../lib/source.js';
 import { AppType, ParsedValue } from '../types.js';
-import { readThrift } from '../format/thrift.js';
+import { AppViewerElement } from './viewer.js';
+import { setVirtualChild } from '../lib/vmap.js';
 
 export class AppDecoderElement extends HTMLElement {
   #main: AppNestElement;
   #setValue: (v: string) => void;
+
+  #root: ParsedValue = {
+    type: AppType.LIST,
+    items: [],
+  };
 
   constructor() {
     super();
@@ -27,16 +30,33 @@ textarea {
 </label>
 <textarea></textarea>
 <app-nest></app-nest>
+<app-viewer></app-viewer>
 `;
 
     const inputElement = root.querySelector('textarea')!;
     const offsetElement = root.querySelector('input')!;
+    const viewerElement = root.querySelector('app-viewer') as AppViewerElement;
+
+    viewerElement.addEventListener('upgrade', (e) => {
+      const ce = e as CustomEvent<{ from: ParsedValue; to: ParsedValue }>;
+
+      setVirtualChild(ce.detail.from, ce.detail.to);
+      this.#main.requestUpdate('root');
+      // this.#rerender();
+    });
 
     const nestElement = root.querySelector('app-nest') as AppNestElement;
     this.#main = nestElement;
+    this.#main.root = this.#root;
 
     const update = () => {
-      this.#rerender(inputElement.value, offsetElement.valueAsNumber);
+      if (this.#root.type !== AppType.LIST) {
+        throw '??';
+      }
+      this.#root.items = [
+        { type: AppType.STRING, value: inputElement.value.substring(offsetElement.valueAsNumber) },
+      ];
+      this.#main.requestUpdate('root');
     };
 
     this.#setValue = (v: string) => {
@@ -44,28 +64,13 @@ textarea {
       update();
     };
 
+    this.#main.addEventListener('choice', (e) => {
+      const ce = e as CustomEvent<ParsedValue>;
+      viewerElement.node = ce.detail;
+    });
+
     inputElement.addEventListener('change', update);
     offsetElement.addEventListener('change', update);
-  }
-
-  #rerender(raw: string, offset: number) {
-    this.#main.textContent = '';
-
-    // check for formats
-    let buf = convertToBuffer(raw);
-    if (!buf) {
-      console.warn('Could not convert');
-      return;
-    }
-    const reader = new TCompactProtocolReaderBuffer(buf, offset);
-    const out = readThrift(reader, ThriftType.STRUCT);
-
-    // TODO: proxy for "master list"
-    const listItem: ParsedValue = {
-      type: AppType.LIST,
-      items: [out],
-    };
-    this.#main.root = listItem;
   }
 
   set value(v: string) {

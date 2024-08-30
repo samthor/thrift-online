@@ -42,8 +42,21 @@ export class DataTree {
   }
 }
 
-export function iterateValue(pv: ParsedValue) {
+const virtualChildren = new WeakMap<ParsedValue, ParsedValue>();
+
+export function setVirtualChild(from: ParsedValue, to: ParsedValue) {
+  virtualChildren.set(from, to);
+}
+
+export function iterateValue(
+  pv: ParsedValue,
+): { value: ParsedValue; key: string | number | undefined }[] {
   if ('value' in pv) {
+    const v = virtualChildren.get(pv);
+    if (v) {
+      return [{ value: v, key: undefined }];
+    }
+
     return [];
   }
 

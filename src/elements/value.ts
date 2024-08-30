@@ -1,5 +1,5 @@
 export class AppValueElement extends HTMLElement {
-  #value: number | Uint8Array | boolean | undefined;
+  #value: number | string | Uint8Array | boolean | undefined;
   #render: () => void;
 
   constructor() {
@@ -34,7 +34,7 @@ export class AppValueElement extends HTMLElement {
     };
   }
 
-  set value(v: number | Uint8Array | boolean | undefined) {
+  set value(v: number | string | Uint8Array | boolean | undefined) {
     this.#value = v;
     this.#render();
   }
